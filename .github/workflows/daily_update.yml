@@ -1,0 +1,24 @@
+name: Daily Meal Data Update
+
+on:
+  schedule:
+    - cron: '0 22 * * *' # 한국 시간 기준 매일 오전 7시
+  workflow_dispatch: # 직접 실행 버튼 생성
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install pandas requests gspread google-auth
+      - name: Run Script
+        env:
+          FOOD_API_KEY: ${{ secrets.FOOD_API_KEY }}
+          GOOGLE_SHEETS_CREDENTIALS: ${{ secrets.GOOGLE_SHEETS_CREDENTIALS }}
+          SPREADSHEET_ID: ${{ secrets.SPREADSHEET_ID }}
+        run: python update_script.py
