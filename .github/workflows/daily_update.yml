@@ -1,24 +1,24 @@
-name: Daily Meal Data Update
+steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-on:
-  schedule:
-    - cron: '0 22 * * *'
-  workflow_dispatch:
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
-      - name: Install dependencies
-        run: pip install pandas requests gspread google-auth
-      - name: Run Script
+          python-version: '3.9'
+
+      # 첫 번째: 식품안전나라 업데이트
+      - name: Run Food Safety Korea Update
+        run: python update_script.py
         env:
           FOOD_API_KEY: ${{ secrets.FOOD_API_KEY }}
-          GOOGLE_SHEETS_CREDENTIALS: ${{ secrets.GOOGLE_SHEETS_CREDENTIALS }}
           SPREADSHEET_ID: ${{ secrets.SPREADSHEET_ID }}
-        run: python update_script.py
+          GOOGLE_SHEETS_CREDENTIALS: ${{ secrets.GOOGLE_SHEETS_CREDENTIALS }}
+
+      # 두 번째: 행정안전부 업데이트
+      - name: Run Gov Data Update
+        run: python update_script_gov.py
+        env:
+          DATA_GO_KR_KEY: ${{ secrets.DATA_GO_KR_KEY }}
+          SPREADSHEET_ID: ${{ secrets.SPREADSHEET_ID }}
+          GOOGLE_SHEETS_CREDENTIALS: ${{ secrets.GOOGLE_SHEETS_CREDENTIALS }}
