@@ -11,39 +11,34 @@ SPREADSHEET_ID = os.environ.get('SPREADSHEET_ID', '').strip()
 CREDS_JSON = os.environ.get('GOOGLE_SHEETS_CREDENTIALS', '')
 
 def fetch_meal_data():
-    service_id = "I1250"
-    url = f"http://openapi.foodsafetykorea.go.kr/api/{FOOD_API_KEY}/{service_id}/json/1/1000"
+    # 데이터 양을 100개로 줄여서 안정성 확보
+    url = f"http://openapi.foodsafetykorea.go.kr/api/{FOOD_API_KEY}/I1250/json/1/100"
     
+    print("데이터를 불러오는 중입니다...")
     try:
         response = requests.get(url, timeout=30)
+        # 응답 내용 확인용 로그
+        print(f"응답 상태: {response.status_code}")
+        
         if response.status_code != 200:
+            print("서버 연결에 실패했습니다.")
             return None
+
+        # 혹시 결과가 비어있는지 확인
+        if not response.text.strip():
+            print("서버에서 빈 내용을 보냈습니다. 인증키를 다시 확인해주세요.")
+            return None
+
         data = response.json()
-        if service_id in data:
-            rows = data[service_id]['row']
+        if 'I1250' in data:
+            rows = data['I1250']['row']
+            print(f"성공! {len(rows)}개의 데이터를 찾았습니다.")
             return pd.DataFrame(rows)
-        return None
+        else:
+            print("데이터 형식이 올바르지 않습니다.")
+            return None
     except Exception as e:
-        print(f"데이터 가져오기 오류: {e}")
+        print(f"에러 발생: {e}")
         return None
 
-def update_google_sheet(df):
-    if df is None or df.empty:
-        return
-    try:
-        creds_dict = json.loads(CREDS_JSON)
-        scopes = ['https://www.googleapis.com/auth/spreadsheets']
-        creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
-        client = gspread.authorize(creds)
-        sh = client.open_by_key(SPREADSHEET_ID)
-        worksheet = sh.get_worksheet(0)
-        worksheet.clear()
-        df = df.fillna('')
-        worksheet.update([df.columns.values.tolist()] + df.values.tolist())
-        print("구글 시트 업데이트 성공!")
-    except Exception as e:
-        print(f"시트 업데이트 오류: {e}")
-
-if __name__ == "__main__":
-    df_result = fetch_meal_data()
-    update_google_sheet(df_result)
+# (이하 update_google_sheet 함수는 동일)
