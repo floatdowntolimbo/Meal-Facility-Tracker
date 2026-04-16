@@ -5,47 +5,49 @@ import gspread
 from google.oauth2.service_account import Credentials
 import json
 
-# 1. 설정값 불러오기 (공백 자동 제거)
+# 1. 설정값 (환경 변수)
 FOOD_API_KEY = os.environ.get('FOOD_API_KEY', '').strip()
 SPREADSHEET_ID = os.environ.get('SPREADSHEET_ID', '').strip()
 CREDS_JSON = os.environ.get('GOOGLE_SHEETS_CREDENTIALS', '')
 
 def fetch_meal_data():
-    # 서비스 ID: I1250 (대문자 아이 + 1250)
     service_id = "I1250"
-    # 요청 주소 형식 준수
-    url = f"http://openapi.foodsafetykorea.go.kr/api/{FOOD_API_KEY}/{service_id}/json/1/500"
     
-    print(f"📡 데이터 요청 시작: {service_id}")
+    # 20자리 키를 위한 주소 테스트 (두 가지 방식 시도)
+    urls = [
+        # 방식 A: 표준 경로 방식
+        f"http://openapi.foodsafetykorea.go.kr/api/{FOOD_API_KEY}/{service_id}/json/1/500",
+        # 방식 B: 보안(https) 및 파라미터 방식 시도
+        f"https://openapi.foodsafetykorea.go.kr/api/{FOOD_API_KEY}/{service_id}/json/1/500"
+    ]
     
-    try:
-        response = requests.get(url, timeout=30)
-        
-        # 만약 '인증키 유효하지 않음' 팝업 내용이 들어있다면?
-        if "<script" in response.text:
-            print("❌ 오류: 식품안전나라에서 인증키를 거부했습니다.")
-            print("💡 해결책: GitHub Secrets에 넣은 인증키가 32자리 글자만 정확히 들어있는지 재확인하세요.")
-            return None
-
-        data = response.json()
-        
-        # 데이터가 정상적으로 들어온 경우
-        if service_id in data:
-            rows = data[service_id]['row']
-            print(f"✅ 성공: {len(rows)}개의 데이터를 수집했습니다.")
-            return pd.DataFrame(rows)
-        else:
-            msg = data.get('RESULT', {}).get('MSG', '알 수 없는 응답 구조')
-            print(f"❌ API 응답 오류: {msg}")
-            return None
+    print(f"📡 데이터 요청 시작 (인증키 길이: {len(FOOD_API_KEY)}자)")
+    
+    for i, url in enumerate(urls):
+        try:
+            print(f"🔄 시도 {i+1}...")
+            response = requests.get(url, timeout=30)
             
-    except Exception as e:
-        print(f"❌ 시스템 오류 발생: {e}")
-        return None
+            # 인증키 거부 메시지가 포함되어 있는지 확인
+            if "인증키가 유효하지 않습니다" in response.text or response.status_code != 200:
+                continue
+
+            data = response.json()
+            if service_id in data:
+                rows = data[service_id]['row']
+                print(f"✅ 성공: {len(rows)}개의 데이터를 가져왔습니다!")
+                return pd.DataFrame(rows)
+                
+        except Exception as e:
+            print(f"⚠️ 시도 {i+1} 중 오류 발생: {e}")
+            continue
+            
+    print("❌ 모든 접속 방식으로 실패했습니다. 인증키 승인 여부를 다시 확인해주세요.")
+    return None
 
 def update_google_sheet(df):
     if df is None or df.empty:
-        print("⏭️ 데이터가 없어 시트 업데이트를 진행하지 않습니다.")
+        print("⏭️ 업데이트할 데이터가 없어 종료합니다.")
         return
     try:
         creds_dict = json.loads(CREDS_JSON)
@@ -55,12 +57,11 @@ def update_google_sheet(df):
         worksheet = sh.get_worksheet(0)
         
         worksheet.clear()
-        # 전체 데이터를 문자열로 변환하여 에러 방지
         worksheet.update([df.columns.values.tolist()] + df.fillna('').values.tolist())
-        print("🎉 모든 데이터가 구글 시트에 업데이트되었습니다!")
+        print("🎉 구글 스프레드시트 업데이트 완료!")
     except Exception as e:
-        print(f"❌ 구글 시트 오류: {e}")
+        print(f"❌ 시트 업데이트 오류: {e}")
 
 if __name__ == "__main__":
-    final_df = fetch_meal_data()
-    update_google_sheet(final_df)
+    df_final = fetch_meal_data()
+    update_google_sheet(df_final)
