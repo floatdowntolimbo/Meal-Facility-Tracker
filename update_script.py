@@ -14,7 +14,7 @@ SPREADSHEET_ID = os.environ.get('SPREADSHEET_ID', '').strip()
 CREDS_JSON = os.environ.get('GOOGLE_SHEETS_CREDENTIALS', '')
 
 def fetch_meal_data():
-    service_id = "I1250"
+    service_id = "I1210"
     # 주소창에서 성공했던 그 형식을 100% 재현합니다.
     url = f"http://openapi.foodsafetykorea.go.kr/api/{FOOD_API_KEY}/{service_id}/json/1/100"
     
